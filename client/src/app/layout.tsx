@@ -2,14 +2,14 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: '온길 — 시각장애인을 위한 고시인성 안전 보행 길 안내',
-  description: '도로 표지판 표준 고대비 배색과 초대형 방향 지시, 점자블록 및 음향신호기 안내를 제공하는 보행 내비게이션',
+  title: '온길 — 모두의 안전한 길',
+  description: '시각장애인을 위한 접근성 중심 보행 길 안내 서비스',
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#0E1210',
+  themeColor: '#f6f7f2',
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -22,4 +22,3 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     </html>
   )
 }
-
