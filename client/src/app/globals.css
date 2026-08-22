@@ -372,62 +372,158 @@ a:focus-visible {
   letter-spacing: -0.04em;
 }
 
-/* 도로 표지판 스타일 검색 폼 */
-.simple-search form {
-  background: var(--sign-dark-surface);
-  border: 4px solid var(--sign-yellow);
-  border-radius: 24px;
-  overflow: hidden;
-  box-shadow: 0 8px 0 #000, 0 12px 24px rgba(0, 0, 0, 0.5);
-}
-
-.simple-search label {
-  min-height: 74px;
-  padding: 14px 20px;
-  display: grid;
-  grid-template-columns: 68px 1fr auto;
+/* 도로 표지판 스타일 독립형 대형 검색 카드 폼 */
+.simple-search-container {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
-}
-.simple-search label + label {
-  border-top: 3px solid var(--sign-border);
-}
-.simple-search label > span {
-  font-size: 1.1rem;
-  font-weight: 900;
-  color: var(--sign-yellow);
-  background: #000;
-  padding: 6px 10px;
-  border-radius: 10px;
-  text-align: center;
-  border: 2px solid var(--sign-border);
-}
-
-.simple-current-location strong {
-  font-size: 1.35rem;
-  font-weight: 900;
-  color: #fff;
-}
-.simple-current-location svg {
-  color: var(--sign-green);
-}
-
-.simple-destination input {
   width: 100%;
+  margin-bottom: 6px;
+}
+
+.simple-search-card {
+  width: 100%;
+  background: #F4F8F4;
+  border: 4px solid #17382B;
+  border-radius: 28px;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 6px 0 #17382B, 0 10px 20px rgba(0, 0, 0, 0.12);
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.simple-search-card:focus-within, .simple-search-card.active {
+  background: #FFFFFF;
+  border-color: #006644;
+  box-shadow: 0 8px 0 #004D33, 0 14px 28px rgba(0, 102, 68, 0.2);
+}
+
+.simple-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
   min-width: 0;
+}
+
+.simple-card-label {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #2F4D40;
+}
+
+.simple-card-value {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #0E1A14;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.simple-card-input {
+  width: 100%;
   border: 0;
   outline: 0;
   background: transparent;
-  color: #fff;
-  font-size: 1.4rem;
+  font-size: 1.65rem;
   font-weight: 900;
+  color: #000000;
+  padding: 0;
 }
-.simple-destination input::placeholder {
-  color: #8E9C94;
+.simple-card-input::placeholder {
+  color: #72857C;
 }
-.simple-destination:focus-within {
-  background: var(--sign-dark-card);
-  box-shadow: inset 0 0 0 3px var(--sign-yellow);
+
+/* 카드 간 세로 연결선 */
+.simple-card-connector {
+  width: 6px;
+  height: 28px;
+  background: #17382B;
+  position: relative;
+  z-index: 2;
+  margin: -4px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.simple-card-connector::before, .simple-card-connector::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  background: #17382B;
+  border-radius: 50%;
+  position: absolute;
+}
+.simple-card-connector::before { top: -4px; }
+.simple-card-connector::after { bottom: -4px; }
+
+/* 대형 원형 마이크 버튼 */
+.mic-large-button {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3.5px solid #17382B;
+  background: #E8F5EE;
+  color: #006644;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(23, 56, 43, 0.18);
+  transition: transform 0.15s ease, background-color 0.2s;
+  flex: 0 0 auto;
+}
+.mic-large-button:hover, .mic-large-button:focus-visible {
+  background: #006644;
+  color: #FFFFFF;
+  transform: scale(1.08);
+}
+.mic-large-button.is-listening {
+  background: #CC0000;
+  color: #FFFFFF;
+  border-color: #880000;
+  animation: micPulse 1.2s infinite alternate;
+}
+
+@keyframes micPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(204, 0, 0, 0.7); }
+  100% { transform: scale(1.15); box-shadow: 0 0 0 16px rgba(204, 0, 0, 0); }
+}
+
+.mic-notice-text {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #17382B;
+  margin-top: 10px;
+}
+
+/* 위치 재검색 전용 그린 버튼 */
+.gps-refresh-button {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 3.5px solid #17382B;
+  background: #E8F5EE;
+  color: #006644;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(23, 56, 43, 0.18);
+  flex: 0 0 auto;
+  transition: transform 0.15s ease;
+}
+.gps-refresh-button:hover, .gps-refresh-button:focus-visible {
+  background: #006644;
+  color: #FFFFFF;
+  transform: scale(1.08);
 }
 
 /* 빠른 목적지 선택 버튼 (도로 표지판 타일) */

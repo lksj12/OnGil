@@ -334,14 +334,20 @@ function ReleasePressButton({
 }
 
 function SimpleGuide({
-  destination, profile, onDestinationChange, onSelectPlace, onStart, onGuardianMode,
+  destination, profile, currentLocation, isDetectingLocation, isListening,
+  onDestinationChange, onSelectPlace, onStart, onGuardianMode, onRefreshLocation, onStartVoiceInput,
 }: {
   destination: string
   profile?: RouteProfile
+  currentLocation: string
+  isDetectingLocation: boolean
+  isListening: boolean
   onDestinationChange: (value: string) => void
   onSelectPlace: (place: string) => void
   onStart: () => void
   onGuardianMode: () => void
+  onRefreshLocation: () => void
+  onStartVoiceInput: () => void
 }) {
   const safeProfile = profile || routeProfiles['광화문광장']
 
@@ -361,19 +367,63 @@ function SimpleGuide({
         <section className="simple-search" aria-labelledby="simple-search-title">
           <div className="simple-section-label">
             <MapPin size={30} />
-            <h1 id="simple-search-title">목적지를 선택하세요</h1>
+            <h1 id="simple-search-title">출발지 및 목적지 설정</h1>
           </div>
-          <form onSubmit={(event) => { event.preventDefault(); onStart() }}>
-            <label className="simple-current-location">
-              <span>출발</span>
-              <strong>현재 위치 · 서울시청</strong>
-              <LocateFixed size={30} />
-            </label>
-            <label className="simple-destination">
-              <span>도착</span>
-              <input value={destination} onChange={(event) => onDestinationChange(event.target.value)} aria-label="목적지 입력" placeholder="목적지를 입력하세요" />
-            </label>
+
+          <form onSubmit={(event) => { event.preventDefault(); onStart() }} className="simple-search-container">
+            {/* 출발 위치 카드 */}
+            <div className="simple-search-card" aria-label="출발 위치 정보">
+              <div className="simple-card-info">
+                <span className="simple-card-label">출발 위치</span>
+                <strong className="simple-card-value">
+                  {isDetectingLocation ? '현재 위치 감지 중...' : (currentLocation || '서울시청')}
+                </strong>
+              </div>
+              <button
+                type="button"
+                className="gps-refresh-button"
+                onClick={onRefreshLocation}
+                aria-label="현재 위치 다시 감지하기"
+                title="현재 위치 갱신"
+              >
+                <LocateFixed size={32} />
+              </button>
+            </div>
+
+            {/* 카드 사이 세로 연결선 */}
+            <div className="simple-card-connector" aria-hidden="true" />
+
+            {/* 도착지 입력 카드 + 대형 원형 마이크 버튼 */}
+            <div className={`simple-search-card ${destination ? 'active' : ''}`} aria-label="도착지 입력 및 음성 검색">
+              <div className="simple-card-info">
+                <label htmlFor="destination-input" className="simple-card-label">도착지</label>
+                <input
+                  id="destination-input"
+                  className="simple-card-input"
+                  value={destination}
+                  onChange={(event) => onDestinationChange(event.target.value)}
+                  aria-label="도착지 입력"
+                  placeholder="장소를 입력하거나 마이크를 누르세요"
+                />
+              </div>
+              <button
+                type="button"
+                className={`mic-large-button ${isListening ? 'is-listening' : ''}`}
+                onClick={onStartVoiceInput}
+                aria-label="음성으로 목적지 검색하기"
+                title="음성 검색"
+              >
+                <Mic2 size={36} />
+              </button>
+            </div>
+
+            {/* 하단 마이크 안내 문구 */}
+            <div className="mic-notice-text">
+              <Mic2 size={24} />
+              <span>{isListening ? '음성을 듣고 있습니다... 목적지를 말씀해 주세요' : '입력창 오른쪽 마이크를 누르고 장소를 말해 주세요.'}</span>
+            </div>
           </form>
+
           <div className="simple-quick-places" aria-label="자주 가는 목적지 선택">
             {supportedDestinations.map((place) => (
               <ReleasePressButton key={place} className={safeProfile.destination === place ? 'is-selected' : ''} onActivate={() => onSelectPlace(place)}>
@@ -428,6 +478,9 @@ export default function Home() {
   const [lightMode, setLightMode] = useState(false)
   const [destination, setDestination] = useState('광화문광장')
   const [searchedDestination, setSearchedDestination] = useState('광화문광장')
+  const [currentLocation, setCurrentLocation] = useState('서울시청')
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false)
+  const [isListening, setIsListening] = useState(false)
   const [activeStep, setActiveStep] = useState(0)
   const [reports, setReports] = useState<Report[]>(fallbackReports)
   const [reportOpen, setReportOpen] = useState(false)
@@ -438,11 +491,39 @@ export default function Home() {
   const routeProfile = routeProfiles[searchedDestination] || fallbackProfile
   const routeSteps = routeProfile?.steps || fallbackProfile.steps
 
-  useEffect(() => { getReports().then(setReports).catch(() => setReports(fallbackReports)) }, [])
+  // 현재 GPS 위치 자동 감지
+  const detectLocation = () => {
+    if (!('geolocation' in navigator)) {
+      setCurrentLocation('현재 위치 · 서울시청')
+      return
+    }
+    setIsDetectingLocation(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setIsDetectingLocation(false)
+        const lat = pos.coords.latitude.toFixed(4)
+        const lng = pos.coords.longitude.toFixed(4)
+        setCurrentLocation(`현재 위치 (GPS ${lat}, ${lng}) · 서울시청`)
+        setToast('현재 위치 감지가 완료되었습니다.')
+      },
+      () => {
+        setIsDetectingLocation(false)
+        setCurrentLocation('현재 위치 · 서울시청')
+      },
+      { timeout: 5000 }
+    )
+  }
+
+  useEffect(() => {
+    detectLocation()
+    getReports().then(setReports).catch(() => setReports(fallbackReports))
+  }, [])
+
   useEffect(() => {
     document.documentElement.style.setProperty('--font-scale', String(fontScale))
     document.documentElement.classList.toggle('light-mode', lightMode)
   }, [fontScale, lightMode])
+
   useEffect(() => {
     if (!toast) return
     const timer = window.setTimeout(() => setToast(''), 3500)
@@ -471,26 +552,80 @@ export default function Home() {
     setToast(`${nextDestination}까지 안전 경로를 찾았습니다.`)
   }
 
-  function startSimpleGuide() {
-    const nextDestination = destination.trim()
+  // 지정 목적지로 즉시 음성 길안내 자동 시작
+  function startSimpleGuideWithTarget(targetPlace: string) {
+    const nextDestination = targetPlace.trim()
     if (!routeProfiles[nextDestination]) {
-      setToast(`현재는 ${supportedDestinations.join(', ')} 길안내를 이용할 수 있습니다.`)
+      setToast(`현재 프로토타입은 ${supportedDestinations.join(', ')} 길안내를 지원합니다.`)
       return
     }
-    if (searchedDestination !== nextDestination) {
-      setSearchedDestination(nextDestination)
-      setActiveStep(0)
-    }
+    setDestination(nextDestination)
+    setSearchedDestination(nextDestination)
+    setActiveStep(0)
+
     const nextProfile = routeProfiles[nextDestination]
     speak(`${nextDestination}까지 안전 길안내를 시작합니다. 약 ${nextProfile.duration}분, 거리 ${nextProfile.distance}미터입니다. ${routeStepSpeech(nextProfile.steps[0], 0)}`)
     setToast(`${nextDestination} 길안내를 시작합니다.`)
   }
 
+  function startSimpleGuide() {
+    startSimpleGuideWithTarget(destination)
+  }
+
+  // 목적지 빠른 선택 시 자동으로 길안내 시작
   function selectQuickPlace(place: string) {
-    setDestination(place)
-    setSearchedDestination(place)
-    setActiveStep(0)
-    setToast(`${place}까지 안전 경로를 표시했습니다.`)
+    startSimpleGuideWithTarget(place)
+  }
+
+  // 브라우저 음성 인식 (STT) 마이크 동작
+  function startVoiceInput() {
+    const SpeechRecognition = (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).SpeechRecognition
+      || (window as unknown as { SpeechRecognition?: any; webkitSpeechRecognition?: any }).webkitSpeechRecognition
+
+    if (!SpeechRecognition) {
+      speak('이 브라우저는 마이크 음성 인식을 지원하지 않습니다. 키보드로 입력하시거나 빠른 선택 버튼을 이용해 주세요.')
+      setToast('이 브라우저는 음성 인식을 지원하지 않습니다.')
+      return
+    }
+
+    try {
+      const recognition = new SpeechRecognition()
+      recognition.lang = 'ko-KR'
+      recognition.interimResults = false
+      recognition.maxAlternatives = 1
+
+      setIsListening(true)
+      speak('음성 인식을 시작합니다. 목적지를 말씀해 주세요.')
+
+      recognition.onresult = (event: any) => {
+        setIsListening(false)
+        const speechResult = event.results[0][0].transcript.replace(/\s+/g, '')
+        setToast(`인식된 목적지: ${speechResult}`)
+
+        // 매칭되는 지원 목적지 찾기
+        const matched = supportedDestinations.find((p) => speechResult.includes(p) || p.includes(speechResult))
+        if (matched) {
+          startSimpleGuideWithTarget(matched)
+        } else {
+          setDestination(speechResult)
+          setToast(`'${speechResult}' 인식됨. 지원 목적지(${supportedDestinations.join(', ')}) 중 선택해 주세요.`)
+        }
+      }
+
+      recognition.onerror = () => {
+        setIsListening(false)
+        setToast('음성을 인식하지 못했습니다. 다시 마이크를 누르고 말씀해 주세요.')
+      }
+
+      recognition.onend = () => {
+        setIsListening(false)
+      }
+
+      recognition.start()
+    } catch {
+      setIsListening(false)
+      setToast('마이크 연결 오류가 발생했습니다.')
+    }
   }
 
   if (mode === 'simple') {
@@ -499,10 +634,15 @@ export default function Home() {
         <SimpleGuide
           destination={destination}
           profile={routeProfile}
+          currentLocation={currentLocation}
+          isDetectingLocation={isDetectingLocation}
+          isListening={isListening}
           onDestinationChange={setDestination}
           onSelectPlace={selectQuickPlace}
           onStart={startSimpleGuide}
           onGuardianMode={() => setMode('guardian')}
+          onRefreshLocation={detectLocation}
+          onStartVoiceInput={startVoiceInput}
         />
         {toast && <div className="toast" role="status"><Check size={26} />{toast}</div>}
       </>
