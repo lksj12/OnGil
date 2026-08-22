@@ -186,17 +186,26 @@ function TactileStatusBadge({ status }: { status: TactilePavingStatus }) {
   )
 }
 
-function DirectionSignCard({ step, stepIndex, totalSteps }: { step: RouteStep; stepIndex: number; totalSteps: number }) {
-  const dirInfo = getStepDirectionInfo(step)
+function DirectionSignCard({ step, stepIndex, totalSteps }: { step?: RouteStep; stepIndex: number; totalSteps: number }) {
+  const safeStep: RouteStep = step || {
+    id: 0,
+    type: 'straight',
+    instruction: '안내에 따라 이동하세요',
+    detail: '점자블록을 따라 안전하게 이동하세요.',
+    distance: '100m',
+    tactilePaving: '연속',
+    accessibilityNotes: ['점자블록 유도 구간'],
+  }
+  const dirInfo = getStepDirectionInfo(safeStep)
 
   return (
-    <div className="direction-sign-card" aria-label={`현재 안내: ${stepIndex + 1}단계, ${dirInfo.clockText}, ${step.instruction}`}>
+    <div className="direction-sign-card" aria-label={`현재 안내: ${stepIndex + 1}단계, ${dirInfo.clockText}, ${safeStep.instruction}`}>
       <div className="direction-sign-header">
         <div className="sign-title">
           <Compass size={24} />
           <span>보행 방향 지시 표지판</span>
         </div>
-        <span className="step-badge">{stepIndex + 1} / {totalSteps} 단계</span>
+        <span className="step-badge">{stepIndex + 1} / {Math.max(1, totalSteps)} 단계</span>
       </div>
 
       <div className="direction-main-row">
@@ -216,40 +225,51 @@ function DirectionSignCard({ step, stepIndex, totalSteps }: { step: RouteStep; s
           <div className="direction-distance-badge">
             <span>{dirInfo.clockText}</span>
             <span>·</span>
-            <strong>{step.distance}</strong>
+            <strong>{safeStep.distance}</strong>
           </div>
-          <h2 className="direction-instruction">{step.instruction}</h2>
-          <p className="direction-detail">{step.detail}</p>
+          <h2 className="direction-instruction">{safeStep.instruction}</h2>
+          <p className="direction-detail">{safeStep.detail}</p>
         </div>
       </div>
 
-      <TactileStatusBadge status={step.tactilePaving} />
+      <TactileStatusBadge status={safeStep.tactilePaving} />
     </div>
   )
 }
 
-function MapPreview({ profile }: { profile: RouteProfile }) {
+function MapPreview({ profile }: { profile?: RouteProfile }) {
+  const safeProfile = profile || routeProfiles['광화문광장']
   const [zoom, setZoom] = useState(1)
-  useEffect(() => { setZoom(1) }, [profile.destination])
-  const continuousCount = profile.steps.filter((step) => step.tactilePaving === '연속').length
-  const partialCount = profile.steps.filter((step) => step.tactilePaving === '일부 단절').length
-  const unknownCount = profile.steps.filter((step) => step.tactilePaving === '미확인').length
-  const mapDescription = `서울시청에서 ${profile.destination}까지의 고대비 경로 지도. 점자블록 연속 구간 ${continuousCount}개, 일부 단절 구간 ${partialCount}개, 미확인 구간 ${unknownCount}개`
+  useEffect(() => { setZoom(1) }, [safeProfile?.destination])
+
+  const steps = safeProfile?.steps || []
+  const continuousCount = steps.filter((step) => step.tactilePaving === '연속').length
+  const partialCount = steps.filter((step) => step.tactilePaving === '일부 단절').length
+  const unknownCount = steps.filter((step) => step.tactilePaving === '미확인').length
+  const destinationName = safeProfile?.destination || '목적지'
+  const mapDescription = `서울시청에서 ${destinationName}까지의 고대비 경로 지도. 점자블록 연속 구간 ${continuousCount}개, 일부 단절 구간 ${partialCount}개, 미확인 구간 ${unknownCount}개`
+
+  const landmark = safeProfile?.map?.landmark || { name: '세종대로 사거리', left: '39%', top: '56%' }
+  const start = safeProfile?.map?.start || { left: '17%', top: '79%' }
+  const end = safeProfile?.map?.end || { left: '56%', top: '32%' }
+  const path = safeProfile?.map?.path || 'M 155 330 C 225 300, 255 275, 305 240 S 365 190, 405 155'
+  const tactileCoverage = safeProfile?.tactileCoverage ?? 80
+  const cautionCount = safeProfile?.cautionCount ?? 1
 
   return (
     <div className="map-preview" role="group" aria-label="확대와 축소가 가능한 경로 지도">
       <div className="map-canvas" role="img" aria-label={mapDescription} style={{ transform: `scale(${zoom})` }}>
-        <div className="map-label" style={{ left: profile.map.landmark.left, top: profile.map.landmark.top }}>{profile.map.landmark.name}</div>
-        <div className="map-label map-destination-label" style={{ left: profile.map.end.left, top: `calc(${profile.map.end.top} - 38px)` }}>{profile.destination}</div>
-        <div className="map-label map-start-label" style={{ left: profile.map.start.left, top: `calc(${profile.map.start.top} + 40px)` }}>서울시청</div>
+        <div className="map-label" style={{ left: landmark.left, top: landmark.top }}>{landmark.name}</div>
+        <div className="map-label map-destination-label" style={{ left: end.left, top: `calc(${end.top} - 38px)` }}>{destinationName}</div>
+        <div className="map-label map-start-label" style={{ left: start.left, top: `calc(${start.top} + 40px)` }}>서울시청</div>
         <div className="map-road road-one" /><div className="map-road road-two" />
-        <svg className="route-line" viewBox="0 0 700 390" aria-hidden="true"><path d={profile.map.path} /></svg>
-        <div className="map-marker marker-start" style={{ left: profile.map.start.left, top: profile.map.start.top, bottom: 'auto' }}><span>출발</span></div>
-        <div className="map-marker marker-end" style={{ left: profile.map.end.left, top: profile.map.end.top }}><MapPin size={22} /><span>도착</span></div>
+        <svg className="route-line" viewBox="0 0 700 390" aria-hidden="true"><path d={path} /></svg>
+        <div className="map-marker marker-start" style={{ left: start.left, top: start.top, bottom: 'auto' }}><span>출발</span></div>
+        <div className="map-marker marker-end" style={{ left: end.left, top: end.top }}><MapPin size={22} /><span>도착</span></div>
         <div className="hazard-dot hazard-one" title="공사 제보"><Construction size={22} /></div>
         <div className="hazard-dot hazard-two" title="장애물 제보"><AlertTriangle size={22} /></div>
-        <div className="tactile-map-marker tactile-map-one"><Check size={16} /><span>점자블록 {profile.tactileCoverage}%</span></div>
-        <div className="tactile-map-marker tactile-map-two is-warning"><AlertTriangle size={16} /><span>주의 {profile.cautionCount}구간</span></div>
+        <div className="tactile-map-marker tactile-map-one"><Check size={16} /><span>점자블록 {tactileCoverage}%</span></div>
+        <div className="tactile-map-marker tactile-map-two is-warning"><AlertTriangle size={16} /><span>주의 {cautionCount}구간</span></div>
       </div>
       <div className="map-controls" role="group" aria-label="지도 확대 및 축소">
         <ReleasePressButton onActivate={() => setZoom((value) => Math.min(1.8, Number((value + 0.2).toFixed(1))))} ariaLabel="지도 확대" disabled={zoom >= 1.8}><Plus size={26} /></ReleasePressButton>
@@ -317,12 +337,14 @@ function SimpleGuide({
   destination, profile, onDestinationChange, onSelectPlace, onStart, onGuardianMode,
 }: {
   destination: string
-  profile: RouteProfile
+  profile?: RouteProfile
   onDestinationChange: (value: string) => void
   onSelectPlace: (place: string) => void
   onStart: () => void
   onGuardianMode: () => void
 }) {
+  const safeProfile = profile || routeProfiles['광화문광장']
+
   return (
     <div className="simple-app">
       <header className="simple-header">
@@ -354,7 +376,7 @@ function SimpleGuide({
           </form>
           <div className="simple-quick-places" aria-label="자주 가는 목적지 선택">
             {supportedDestinations.map((place) => (
-              <ReleasePressButton key={place} className={profile.destination === place ? 'is-selected' : ''} onActivate={() => onSelectPlace(place)}>
+              <ReleasePressButton key={place} className={safeProfile.destination === place ? 'is-selected' : ''} onActivate={() => onSelectPlace(place)}>
                 <MapPin size={24} />{place}
               </ReleasePressButton>
             ))}
@@ -363,32 +385,32 @@ function SimpleGuide({
 
         {/* 첫 번째 단계 방향 지시 초대형 카드 표시 */}
         <section aria-label="보행 방향 및 안전 안내">
-          <DirectionSignCard step={profile.steps[0]} stepIndex={0} totalSteps={profile.steps.length} />
+          <DirectionSignCard step={safeProfile.steps[0]} stepIndex={0} totalSteps={safeProfile.steps.length} />
         </section>
 
-        <section className="simple-map-block" aria-label={`${profile.destination} 경로 및 지도`}>
+        <section className="simple-map-block" aria-label={`${safeProfile.destination} 경로 및 지도`}>
           <div className="simple-route-card" aria-live="polite">
             <div>
               <span>도착지 표지</span>
-              <strong>{profile.destination}</strong>
+              <strong>{safeProfile.destination}</strong>
             </div>
             <dl>
-              <div><dt>예상 시간</dt><dd className="highlight">약 {profile.duration}분</dd></div>
-              <div><dt>보행 거리</dt><dd>{profile.distance.toLocaleString()}m</dd></div>
-              <div><dt>점자블록</dt><dd className="highlight">{profile.tactileCoverage}%</dd></div>
+              <div><dt>예상 시간</dt><dd className="highlight">약 {safeProfile.duration}분</dd></div>
+              <div><dt>보행 거리</dt><dd>{safeProfile.distance.toLocaleString()}m</dd></div>
+              <div><dt>점자블록</dt><dd className="highlight">{safeProfile.tactileCoverage}%</dd></div>
             </dl>
           </div>
-          <div className="simple-map-area" aria-label={`${profile.destination} 고시인성 지도`}>
-            <MapPreview profile={profile} />
+          <div className="simple-map-area" aria-label={`${safeProfile.destination} 고시인성 지도`}>
+            <MapPreview profile={safeProfile} />
           </div>
         </section>
 
         <section className="simple-action-area">
           <p><Volume2 size={28} /> 버튼을 누르면 음성 길 안내가 바로 시작됩니다.</p>
-          <ReleasePressButton className="simple-start-button" onActivate={onStart} ariaLabel={`${profile.destination}까지 음성 길안내 시작`}>
+          <ReleasePressButton className="simple-start-button" onActivate={onStart} ariaLabel={`${safeProfile.destination}까지 음성 길안내 시작`}>
             <Navigation size={38} />
             <span>
-              <small>{profile.destination}까지</small>
+              <small>{safeProfile.destination}까지</small>
               음성 길안내 시작
             </span>
             <ChevronRight size={36} />
@@ -412,8 +434,9 @@ export default function Home() {
   const [toast, setToast] = useState('')
   const [mobileMenu, setMobileMenu] = useState(false)
   const mainRef = useRef<HTMLElement>(null)
-  const routeProfile = routeProfiles[searchedDestination]
-  const routeSteps = routeProfile.steps
+  const fallbackProfile = routeProfiles['광화문광장']
+  const routeProfile = routeProfiles[searchedDestination] || fallbackProfile
+  const routeSteps = routeProfile?.steps || fallbackProfile.steps
 
   useEffect(() => { getReports().then(setReports).catch(() => setReports(fallbackReports)) }, [])
   useEffect(() => {
